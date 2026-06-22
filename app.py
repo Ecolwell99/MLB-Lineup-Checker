@@ -45,7 +45,6 @@ st.title("MLB Lineup Checker")
 
 def parse_lineup_xml(xml_text):
     players = []
-
     root = ET.fromstring(xml_text.strip())
 
     for player in root.findall("player"):
@@ -53,7 +52,6 @@ def parse_lineup_xml(xml_text):
             "player_id": str(player.attrib.get("id", "")).strip(),
             "name": player.attrib.get("name", ""),
             "team": player.attrib.get("team", ""),
-            "substitute": player.attrib.get("substitute") == "true",
         })
 
     return players
@@ -117,11 +115,13 @@ st.subheader("Roster Downloads")
 
 download_col1, download_col2 = st.columns(2)
 
+team_options = sorted(TEAM_URLS.keys())
+
 with download_col1:
     team_1 = st.selectbox(
         "Team 1",
-        sorted(TEAM_URLS.keys()),
-        index=sorted(TEAM_URLS.keys()).index("Milwaukee Brewers")
+        team_options,
+        index=team_options.index("Milwaukee Brewers")
     )
 
     st.link_button(
@@ -133,8 +133,8 @@ with download_col1:
 with download_col2:
     team_2 = st.selectbox(
         "Team 2",
-        sorted(TEAM_URLS.keys()),
-        index=sorted(TEAM_URLS.keys()).index("Cleveland Guardians")
+        team_options,
+        index=team_options.index("Cleveland Guardians")
     )
 
     st.link_button(
@@ -178,11 +178,20 @@ if st.button("Check Lineup", use_container_width=True):
             hide_index=True
         )
 
+        team_name_map = {
+            "1": team_1,
+            "2": team_2,
+        }
+
         missing_players = []
 
         for player in lineup_players:
             if player["player_id"] not in roster_ids:
-                missing_players.append(player)
+                missing_players.append({
+                    "Player ID": player["player_id"],
+                    "Name": player["name"],
+                    "Team": team_name_map.get(player["team"], player["team"]),
+                })
 
         st.subheader("Results")
 
