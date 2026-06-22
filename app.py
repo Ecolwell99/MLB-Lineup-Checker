@@ -154,4 +154,3 @@ if st.button("Check Lineup"):
     except Exception as e:
 
         st.error(f"Error: {e}")
-```
