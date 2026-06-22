@@ -7,7 +7,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("MLB Lineup Checker")
+st.title("⚾ MLB Lineup Checker")
 
 
 def parse_lineup_xml(xml_text):
@@ -36,25 +36,24 @@ def parse_roster_files(files):
                 file,
                 sep=None,
                 engine="python",
-                header=None,
                 dtype=str,
                 keep_default_na=False
             )
 
+            # Collect roster IDs
             for col in df.columns:
-                values = df[col].fillna("").astype(str).str.strip()
+                values = df[col].astype(str).str.strip()
 
                 for value in values:
                     if value.isdigit() and 6 <= len(value) <= 8:
                         roster_ids.add(value)
 
+            # Team name
             team = ""
 
-            if len(df.columns) > 0:
-                possible_team_col = df.columns[-1]
-
+            if "current_team_name" in df.columns:
                 teams = (
-                    df[possible_team_col]
+                    df["current_team_name"]
                     .astype(str)
                     .str.strip()
                     .replace("", pd.NA)
@@ -62,25 +61,23 @@ def parse_roster_files(files):
                     .unique()
                 )
 
-                if len(teams) == 1:
+                if len(teams) > 0:
                     team = teams[0]
-                elif len(teams) > 1:
-                    team = ", ".join(teams[:3])
 
             file_summaries.append({
                 "File": file.name,
                 "Team": team,
-                "Rows": len(df),
+                "Rows": len(df)
             })
 
         except Exception as e:
+            st.error(f"Failed to read {file.name}: {e}")
+
             file_summaries.append({
                 "File": file.name,
-                "Team": "",
-                "Rows": 0,
+                "Team": "Error",
+                "Rows": 0
             })
-
-            st.error(f"Failed to read {file.name}: {e}")
 
     return roster_ids, file_summaries
 
@@ -111,6 +108,7 @@ if st.button("Check Lineup"):
         roster_ids, file_summaries = parse_roster_files(uploaded_files)
 
         st.subheader("Upload Summary")
+
         st.dataframe(
             pd.DataFrame(file_summaries),
             use_container_width=True,
@@ -126,9 +124,10 @@ if st.button("Check Lineup"):
         st.subheader("Results")
 
         if len(missing_players) == 0:
-            st.success(f"All {len(lineup_players)} lineup players found.")
+            st.success("All lineup players found.")
         else:
             st.error(f"{len(missing_players)} players missing.")
+
             st.dataframe(
                 pd.DataFrame(missing_players),
                 use_container_width=True,
