@@ -41,8 +41,6 @@ def parse_roster_files(files):
                 keep_default_na=False
             )
 
-            ids_before = len(roster_ids)
-
             for col in df.columns:
                 values = df[col].fillna("").astype(str).str.strip()
 
@@ -50,22 +48,39 @@ def parse_roster_files(files):
                     if value.isdigit() and 6 <= len(value) <= 8:
                         roster_ids.add(value)
 
-            ids_added = len(roster_ids) - ids_before
+            team = ""
+
+            if len(df.columns) > 0:
+                possible_team_col = df.columns[-1]
+
+                teams = (
+                    df[possible_team_col]
+                    .astype(str)
+                    .str.strip()
+                    .replace("", pd.NA)
+                    .dropna()
+                    .unique()
+                )
+
+                if len(teams) == 1:
+                    team = teams[0]
+                elif len(teams) > 1:
+                    team = ", ".join(teams[:3])
 
             file_summaries.append({
-                "file": file.name,
-                "rows": len(df),
-                "ids_added": ids_added,
-                "status": "Read successfully"
+                "File": file.name,
+                "Team": team,
+                "Rows": len(df),
             })
 
         except Exception as e:
             file_summaries.append({
-                "file": file.name,
-                "rows": 0,
-                "ids_added": 0,
-                "status": f"Failed: {e}"
+                "File": file.name,
+                "Team": "",
+                "Rows": 0,
             })
+
+            st.error(f"Failed to read {file.name}: {e}")
 
     return roster_ids, file_summaries
 
@@ -96,10 +111,11 @@ if st.button("Check Lineup"):
         roster_ids, file_summaries = parse_roster_files(uploaded_files)
 
         st.subheader("Upload Summary")
-        st.dataframe(pd.DataFrame(file_summaries), use_container_width=True)
-
-        st.write(f"Lineup players found: {len(lineup_players)}")
-        st.write(f"Roster IDs loaded: {len(roster_ids)}")
+        st.dataframe(
+            pd.DataFrame(file_summaries),
+            use_container_width=True,
+            hide_index=True
+        )
 
         missing_players = []
 
@@ -115,11 +131,9 @@ if st.button("Check Lineup"):
             st.error(f"{len(missing_players)} players missing.")
             st.dataframe(
                 pd.DataFrame(missing_players),
-                use_container_width=True
+                use_container_width=True,
+                hide_index=True
             )
-
-        with st.expander("Show loaded roster IDs"):
-            st.write(sorted(roster_ids))
 
     except Exception as e:
         st.error(f"Error: {e}")
