@@ -40,6 +40,7 @@ TEAM_URLS = {
     "Washington Nationals": "https://sbdeco.prod.simplebet-infra.com/admin/mlb/mlbplayer/?current_team__id__exact=d5699a17-9f13-4ec4-8dca-600fc88b26d2&q=",
 }
 
+
 st.title("MLB Lineup Checker")
 
 
@@ -60,6 +61,7 @@ def parse_lineup_xml(xml_text):
 def parse_roster_files(files):
     roster_ids = set()
     file_summaries = []
+    team_number_map = {}
 
     for file in files:
         try:
@@ -113,35 +115,12 @@ def parse_roster_files(files):
 
 st.subheader("Roster Downloads")
 
-download_col1, download_col2 = st.columns(2)
-
+team_cols = st.columns(3)
 team_options = sorted(TEAM_URLS.keys())
 
-with download_col1:
-    team_1 = st.selectbox(
-        "Team 1",
-        team_options,
-        index=team_options.index("Milwaukee Brewers")
-    )
-
-    st.link_button(
-        f"Open {team_1} Roster",
-        TEAM_URLS[team_1],
-        use_container_width=True
-    )
-
-with download_col2:
-    team_2 = st.selectbox(
-        "Team 2",
-        team_options,
-        index=team_options.index("Cleveland Guardians")
-    )
-
-    st.link_button(
-        f"Open {team_2} Roster",
-        TEAM_URLS[team_2],
-        use_container_width=True
-    )
+for i, team in enumerate(team_options):
+    with team_cols[i % 3]:
+        st.markdown(f"[{team}]({TEAM_URLS[team]})")
 
 st.divider()
 
@@ -179,9 +158,21 @@ if st.button("Check Lineup", use_container_width=True):
         )
 
         team_name_map = {
-            "1": team_1,
-            "2": team_2,
+            "1": "Team 1",
+            "2": "Team 2",
         }
+
+        uploaded_team_names = [
+            row["Team"]
+            for row in file_summaries
+            if row.get("Team") and row.get("Team") != "Error"
+        ]
+
+        if len(uploaded_team_names) >= 2:
+            team_name_map = {
+                "1": uploaded_team_names[0],
+                "2": uploaded_team_names[1],
+            }
 
         missing_players = []
 
