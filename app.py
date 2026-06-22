@@ -7,6 +7,15 @@ st.set_page_config(
     layout="wide"
 )
 
+st.markdown("""
+<style>
+div[data-testid="stLinkButton"] button {
+    font-size: 12px;
+    min-height: 32px;
+}
+</style>
+""", unsafe_allow_html=True)
+
 TEAM_URLS = {
     "Arizona Diamondbacks": "https://sbdeco.prod.simplebet-infra.com/admin/mlb/mlbplayer/?current_team__id__exact=459d7455-e83c-4de3-b761-2936e1c296e8&q=",
     "Atlanta Braves": "https://sbdeco.prod.simplebet-infra.com/admin/mlb/mlbplayer/?current_team__id__exact=45d728b7-b8c8-41be-b017-18ff1db84ef8&q=",
@@ -40,7 +49,6 @@ TEAM_URLS = {
     "Washington Nationals": "https://sbdeco.prod.simplebet-infra.com/admin/mlb/mlbplayer/?current_team__id__exact=d5699a17-9f13-4ec4-8dca-600fc88b26d2&q=",
 }
 
-
 st.title("MLB Lineup Checker")
 
 
@@ -61,7 +69,6 @@ def parse_lineup_xml(xml_text):
 def parse_roster_files(files):
     roster_ids = set()
     file_summaries = []
-    team_number_map = {}
 
     for file in files:
         try:
@@ -115,12 +122,19 @@ def parse_roster_files(files):
 
 st.subheader("Roster Downloads")
 
-team_cols = st.columns(3)
-team_options = sorted(TEAM_URLS.keys())
+with st.expander("Open Team Roster Pages", expanded=False):
+    team_options = sorted(TEAM_URLS.keys())
 
-for i, team in enumerate(team_options):
-    with team_cols[i % 3]:
-        st.markdown(f"[{team}]({TEAM_URLS[team]})")
+    for row_start in range(0, len(team_options), 3):
+        cols = st.columns(3)
+
+        for col_idx, team in enumerate(team_options[row_start:row_start + 3]):
+            with cols[col_idx]:
+                st.link_button(
+                    label=team,
+                    url=TEAM_URLS[team],
+                    use_container_width=True
+                )
 
 st.divider()
 
