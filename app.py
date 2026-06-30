@@ -58,45 +58,16 @@ def parse_lineup_xml(xml_text):
 
     for player in root.findall("player"):
         players.append({
-            "Player ID": str(player.attrib.get("id", "")).strip(),
-            "Name": player.attrib.get("name", ""),
-            "XML Team": player.attrib.get("team", ""),
+            "player_id": str(player.attrib.get("id", "")).strip(),
+            "name": player.attrib.get("name", ""),
+            "team": player.attrib.get("team", ""),
         })
 
     return players
 
 
-def find_player_id_column(df):
-    preferred_cols = [
-        "player_id",
-        "id",
-        "provider_player_id",
-        "simplebet_player_id",
-        "stats_id",
-    ]
-
-    for col in preferred_cols:
-        if col in df.columns:
-            return col
-
-    best_col = None
-    best_count = 0
-
-    for col in df.columns:
-        values = df[col].astype(str).str.strip()
-        count = values.apply(lambda x: x.isdigit() and 6 <= len(x) <= 8).sum()
-
-        if count > best_count:
-            best_count = count
-            best_col = col
-
-    return best_col
-
-
 def parse_roster_files(files):
     roster_ids = set()
-    player_team_lookup = {}
-    player_name_lookup = {}
     file_summaries = []
 
     for file in files:
@@ -109,51 +80,27 @@ def parse_roster_files(files):
                 keep_default_na=False
             )
 
-            player_id_col = find_player_id_column(df)
+            for col in df.columns:
+                values = df[col].astype(str).str.strip()
 
-            team_col = "current_team_name" if "current_team_name" in df.columns else None
-            name_col = "full_name" if "full_name" in df.columns else None
-
-            if name_col is None and "display_name" in df.columns:
-                name_col = "display_name"
-
-            if name_col is None and "name" in df.columns:
-                name_col = "name"
+                for value in values:
+                    if value.isdigit() and 6 <= len(value) <= 8:
+                        roster_ids.add(value)
 
             team = ""
 
-            if team_col:
+            if "current_team_name" in df.columns:
                 teams = (
-                    df[team_col]
+                    df["current_team_name"]
                     .astype(str)
                     .str.strip()
                     .replace("", pd.NA)
                     .dropna()
                     .unique()
                 )
+
                 if len(teams) > 0:
                     team = teams[0]
-
-            if player_id_col is not None:
-                for _, row in df.iterrows():
-                    player_id = str(row.get(player_id_col, "")).strip()
-
-                    if player_id.isdigit() and 6 <= len(player_id) <= 8:
-                        roster_ids.add(player_id)
-
-                        row_team = ""
-                        if team_col:
-                            row_team = str(row.get(team_col, "")).strip()
-
-                        row_name = ""
-                        if name_col:
-                            row_name = str(row.get(name_col, "")).strip()
-
-                        if row_team:
-                            player_team_lookup[player_id] = row_team
-
-                        if row_name:
-                            player_name_lookup[player_id] = row_name
 
             file_summaries.append({
                 "File": file.name,
@@ -170,7 +117,7 @@ def parse_roster_files(files):
                 "Rows": 0
             })
 
-    return roster_ids, player_team_lookup, player_name_lookup, file_summaries
+    return roster_ids, file_summaries
 
 
 st.subheader("Roster Downloads")
@@ -214,13 +161,7 @@ if st.button("Check Lineup", use_container_width=True):
 
     try:
         lineup_players = parse_lineup_xml(xml_input)
-
-        (
-            roster_ids,
-            player_team_lookup,
-            player_name_lookup,
-            file_summaries
-        ) = parse_roster_files(uploaded_files)
+        roster_ids, file_summaries = parse_roster_files(uploaded_files)
 
         st.subheader("Upload Summary")
 
@@ -230,16 +171,31 @@ if st.button("Check Lineup", use_container_width=True):
             hide_index=True
         )
 
+        team_name_map = {
+            "1": "Team 1",
+            "2": "Team 2",
+        }
+
+        uploaded_team_names = [
+            row["Team"]
+            for row in file_summaries
+            if row.get("Team") and row.get("Team") != "Error"
+        ]
+
+        if len(uploaded_team_names) >= 2:
+            team_name_map = {
+                "1": uploaded_team_names[0],
+                "2": uploaded_team_names[1],
+            }
+
         missing_players = []
 
         for player in lineup_players:
-            player_id = player["Player ID"]
-
-            if player_id not in roster_ids:
+            if player["player_id"] not in roster_ids:
                 missing_players.append({
-                    "Player ID": player_id,
-                    "Name": player["Name"],
-                    "Team": player_team_lookup.get(player_id, "Not found in uploaded rosters"),
+                    "Player ID": player["player_id"],
+                    "Name": player["name"],
+                    "Team": team_name_map.get(player["team"], player["team"]),
                 })
 
         st.subheader("Results")
